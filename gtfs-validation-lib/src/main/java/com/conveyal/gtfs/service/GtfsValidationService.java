@@ -10,6 +10,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import org.onebusaway.gtfs.impl.GtfsRelationalDaoImpl;
 import org.onebusaway.gtfs.model.AgencyAndId;
@@ -112,34 +115,19 @@ public class GtfsValidationService {
 
 		// map stop time sequences to trip id
 
-		HashMap<String, ArrayList<StopTime>> tripStopTimes = new HashMap<String, ArrayList<StopTime>>(statsService.getStopTimesCount() *2);
+		//		ConcurrentHashMap<String, List<StopTime>> tripStopTimes = getTripStopTimes(gtfsDao);
 
-		HashSet<String> usedStopIds = new HashSet<String>(statsService.getStopCount() *2);
+		HashSet<String> usedStopIds = getUsedStopIds(gtfsDao);
 
 		String tripId;
-		
+
 		cdvs = new CalendarDateVerificationService(gtfsDao);
 		HashSet<AgencyAndId> activeServiceIds = cdvs.getActiveServiceIdsOnly();
-		
 
-		for(StopTime stopTime : gtfsDao.getAllStopTimes()) {
 
-			tripId = stopTime.getTrip().getId().toString();
-
-			if(!tripStopTimes.containsKey(tripId))
-				tripStopTimes.put(tripId, new ArrayList<StopTime>());
-
-			tripStopTimes.get(tripId).add(stopTime);
-
-			if (stopTime.getStop() != null && stopTime.getStop().getId() != null) {
-				usedStopIds.add(stopTime.getStop().getId().toString());
-			}
-
-		}
-
-//		// create service calendar date map
-//
-//
+		//		// create service calendar date map
+		//
+		//
 		@SuppressWarnings("deprecation")
 		int reasonableNumberOfDates = statsService.getNumberOfDays() *2;
 
@@ -231,8 +219,12 @@ public class GtfsValidationService {
 		for(Trip trip : gtfsDao.getAllTrips()) {
 
 			tripId = trip.getId().toString();
+			
+			ArrayList<StopTime> stopTimes = new ArrayList<>(); 
+			stopTimes.addAll(gtfsDao.getStopTimesForTrip(trip));
 
-			ArrayList<StopTime> stopTimes = tripStopTimes.get(tripId);
+			StopTime firststopTime = stopTimes.get(0);
+			StopTime lastStopTime = stopTimes.get(stopTimes.size() -1);
 
 			if(stopTimes == null || stopTimes.isEmpty()) {
 				InvalidValue iv = new InvalidValue("trip", "trip_id", tripId, "NoStopTimesForTrip", "Trip Id " + tripId + " has no stop times." , null, Priority.HIGH);
@@ -285,9 +277,9 @@ public class GtfsValidationService {
 
 				BlockInterval blockInterval = new BlockInterval();
 				blockInterval.setTrip(trip);
-				blockInterval.setStartTime( stopTimes.get(0).getDepartureTime());
-				blockInterval.setFirstStop(stopTimes.get(0));
-				blockInterval.setLastStop(stopTimes.get(stopTimes.size() -1));
+				blockInterval.setStartTime( firststopTime.getDepartureTime());
+				blockInterval.setFirstStop(firststopTime);
+				blockInterval.setLastStop(lastStopTime);
 
 				if(!blockIntervals.containsKey(blockId))
 					blockIntervals.put(blockId, new ArrayList<BlockInterval>());
@@ -306,7 +298,7 @@ public class GtfsValidationService {
 				}
 			}
 
-			tripKey = trip.getServiceId().getId() + "_"+ blockId + "_" + stopTimes.get(0).getDepartureTime() +"_" + stopTimes.get(stopTimes.size() -1).getArrivalTime() + "_" + stopIds;
+			tripKey = trip.getServiceId().getId() + "_"+ blockId + "_" + firststopTime.getDepartureTime() +"_" + lastStopTime.getArrivalTime() + "_" + stopIds;
 
 			if(duplicateTripHash.containsKey(tripKey)) {
 				String duplicateTripId = duplicateTripHash.get(tripKey);
@@ -319,66 +311,66 @@ public class GtfsValidationService {
 			else
 				duplicateTripHash.put(tripKey, tripId);
 		}
-		
+
 
 		// check for overlapping trips within block
-			for(Entry<String, ArrayList<BlockInterval>> blockIdset : blockIntervals.entrySet()) {
+		for(Entry<String, ArrayList<BlockInterval>> blockIdset : blockIntervals.entrySet()) {
 
-				blockId = blockIdset.getKey();
-				ArrayList<BlockInterval> intervals = blockIntervals.get(blockId);
+			blockId = blockIdset.getKey();
+			ArrayList<BlockInterval> intervals = blockIntervals.get(blockId);
 
-				Collections.sort(intervals, new BlockIntervalComparator());
+			Collections.sort(intervals, new BlockIntervalComparator());
 
-				int iOffset = 0;
-				for(BlockInterval i1 : intervals) { 
-					for(BlockInterval i2 : intervals.subList(iOffset, intervals.size() - 1)) {
-
-
-						String tripId1 = i1.getTrip().getId().toString();
-						String tripId2 = i2.getTrip().getId().toString();
+			int iOffset = 0;
+			for(BlockInterval i1 : intervals) { 
+				for(BlockInterval i2 : intervals.subList(iOffset, intervals.size() - 1)) {
 
 
-						if(!tripId1.equals(tripId2)) {
-							// if trips don't overlap, skip 
-							if(i1.getLastStop().getDepartureTime() <= i2.getFirstStop().getArrivalTime() 
-									|| i2.getLastStop().getDepartureTime() <= i1.getFirstStop().getArrivalTime())
-								continue;
+					String tripId1 = i1.getTrip().getId().toString();
+					String tripId2 = i2.getTrip().getId().toString();
 
-							// if trips have same service id they overlap
-							if(i1.getTrip().getServiceId().getId().equals(i2.getTrip().getServiceId().getId())) {
-								// but if they are already in the result set, ignore
-								if (!result.containsBoth(tripId1, tripId2, "trip")){
-									InvalidValue iv =
-											new InvalidValue("trip", "block_id", blockId, "OverlappingTripsInBlock", "Trip Ids " + tripId1 + " & " + tripId2 + " overlap and share block Id " + blockId , null, Priority.HIGH);
-									// not strictly correct; they could be on different routes
+
+					if(!tripId1.equals(tripId2)) {
+						// if trips don't overlap, skip 
+						if(i1.getLastStop().getDepartureTime() <= i2.getFirstStop().getArrivalTime() 
+								|| i2.getLastStop().getDepartureTime() <= i1.getFirstStop().getArrivalTime())
+							continue;
+
+						// if trips have same service id they overlap
+						if(i1.getTrip().getServiceId().getId().equals(i2.getTrip().getServiceId().getId())) {
+							// but if they are already in the result set, ignore
+							if (!result.containsBoth(tripId1, tripId2, "trip")){
+								InvalidValue iv =
+										new InvalidValue("trip", "block_id", blockId, "OverlappingTripsInBlock", "Trip Ids " + tripId1 + " & " + tripId2 + " overlap and share block Id " + blockId , null, Priority.HIGH);
+								// not strictly correct; they could be on different routes
+								iv.route = i1.getTrip().getRoute();
+								result.add(iv);
+							}
+						}
+
+						else {
+							// if trips don't share service id check to see if service dates fall on the same days/day of week
+
+							//								try {
+
+							for(Date d1 : serviceCalendarDates.get(i1.getTrip().getServiceId().getId())) {
+
+								if(serviceCalendarDates.get(i2.getTrip().getServiceId().getId()).contains(d1)) {
+									InvalidValue iv = new InvalidValue("trip", "block_id", blockId, "OverlappingTripsInBlock", "Trip Ids " + tripId1 + " & " + tripId2 + " overlap and share block Id " + blockId , null, Priority.HIGH);
 									iv.route = i1.getTrip().getRoute();
 									result.add(iv);
+									break;
 								}
-							}
-
-							else {
-								// if trips don't share service id check to see if service dates fall on the same days/day of week
-
-//								try {
-									
-									for(Date d1 : serviceCalendarDates.get(i1.getTrip().getServiceId().getId())) {
-
-										if(serviceCalendarDates.get(i2.getTrip().getServiceId().getId()).contains(d1)) {
-											InvalidValue iv = new InvalidValue("trip", "block_id", blockId, "OverlappingTripsInBlock", "Trip Ids " + tripId1 + " & " + tripId2 + " overlap and share block Id " + blockId , null, Priority.HIGH);
-											iv.route = i1.getTrip().getRoute();
-											result.add(iv);
-											break;
-										}
-//									}
+								//									}
 								//} catch (Exception e) {
-									//System.out.println("Could not find :"+ i1.getTrip().getServiceId().getId().toString());
-								}
+								//System.out.println("Could not find :"+ i1.getTrip().getServiceId().getId().toString());
 							}
 						}
 					}
 				}
 			}
-			
+		}
+
 		// check for reversed trip shapes and add to result list 
 		result.append(this.listReversedTripShapes());
 
@@ -675,6 +667,18 @@ public class GtfsValidationService {
 
 		return result;
 
+	}
+
+	private HashSet<String> getUsedStopIds (GtfsRelationalDaoImpl gtfsDao) {
+		HashSet<String> usedStopIds = new HashSet<>();	
+
+		usedStopIds = (HashSet<String>) gtfsDao.getAllStopTimes()
+				.stream()
+				.map(s -> s.getStop().getId().toString())
+				.collect(Collectors.toSet());
+
+		System.out.println("# of stops used " + usedStopIds.size());
+		return usedStopIds;
 	}
 
 }

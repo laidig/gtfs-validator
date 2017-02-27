@@ -149,8 +149,8 @@ public class GtfsValidationServiceTest extends UnitTestBaseUtil {
 
 			ValidationResult results = gtfsValidation.validateRoutes();
 			results.append(gtfsValidation.validateTrips());
-
-			Assert.assertEquals(results.invalidValues.size(), 5);
+			
+			Assert.assertEquals(5, results.invalidValues.size());
 
 		} catch (Exception e) {
 			e.printStackTrace();
