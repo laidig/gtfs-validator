@@ -30,6 +30,8 @@ public class CalendarDateVerificationService {
 	private static ServiceDate to;
 	private static String aid = null;
 
+	private static final int MAX_CALENDAR_PRINT = 30;
+
 	public CalendarDateVerificationService(GtfsRelationalDaoImpl gmd){
 		gtfsMDao = gmd;
 		stats = new GtfsStatisticsService(gmd);
@@ -68,7 +70,7 @@ public class CalendarDateVerificationService {
 		// for each route
 		// geTripsPerRoute, then increment their calendarID counts.
 		
-		ConcurrentHashMap<AgencyAndId, AtomicInteger> tripsPerCalHash = new ConcurrentHashMap<AgencyAndId, AtomicInteger>();
+		ConcurrentHashMap<AgencyAndId, AtomicInteger> tripsPerCalHash = new ConcurrentHashMap<>();
 		gtfsMDao.getAllRoutes()
 			.forEach(r -> gtfsMDao.getTripsForRoute(r)
 					.forEach(t -> {
@@ -84,7 +86,7 @@ public class CalendarDateVerificationService {
 	public TreeMap<Calendar, Integer> getTripCountForDates() {
 
 		ConcurrentHashMap<AgencyAndId, AtomicInteger> tripsPerServHash = getTripCountsForAllServiceIDs();
-		TreeMap<Calendar, Integer> tripsPerDateHash = new TreeMap<Calendar, Integer>();
+		TreeMap<Calendar, Integer> tripsPerDateHash = new TreeMap<>();
 
 		start.setTime(from.getAsDate(tz));
 		
@@ -119,7 +121,7 @@ public class CalendarDateVerificationService {
 	}
 
 	public TreeMap<Calendar, TreeSet<AgencyAndId>> getServiceIdsForDates(){
-		TreeMap<Calendar, TreeSet<AgencyAndId>> serviceIdsForDates = new TreeMap<Calendar, TreeSet<AgencyAndId>>();
+		TreeMap<Calendar, TreeSet<AgencyAndId>> serviceIdsForDates = new TreeMap<>();
 
 		start.setTime(from.getAsDate(tz));
 		end.setTime(to.getAsDate(tz));
@@ -130,15 +132,15 @@ public class CalendarDateVerificationService {
 		
 		while(!start.after(end)){
 
-			TreeSet<AgencyAndId> serviceIdsForTargetDay = new TreeSet<AgencyAndId>();
+			TreeSet<AgencyAndId> serviceIdsForTargetDay = new TreeSet<>();
 
 			ServiceDate targetDay = new ServiceDate(start);
 
-			calendarService.getServiceIdsOnDate(targetDay).forEach(sid -> serviceIdsForTargetDay.add(sid));
+			serviceIdsForTargetDay.addAll(calendarService.getServiceIdsOnDate(targetDay));
+
+			serviceIdsForTargetDay.addAll(dateAdditions.getOrDefault(targetDay, new ArrayList<>()));
 			
-			dateAdditions.getOrDefault(targetDay, new ArrayList<AgencyAndId>()).forEach(sid -> serviceIdsForTargetDay.add(sid));
-			
-			dateRemovals.getOrDefault(targetDay, new ArrayList<AgencyAndId>()).forEach(sid -> serviceIdsForTargetDay.remove(sid));
+			dateRemovals.getOrDefault(targetDay, new ArrayList<>()).forEach(serviceIdsForTargetDay::remove);
 		
 
 			serviceIdsForDates.put(targetDay.getAsCalendar(tz), serviceIdsForTargetDay);
@@ -152,8 +154,8 @@ public class CalendarDateVerificationService {
 		return getServiceIdsForDates().values().stream().collect(HashSet::new, HashSet::addAll, HashSet::addAll);
 	}
 
-	public ArrayList<Calendar> getDatesWithNoTrips(){
-		ArrayList<Calendar> datesWithNoTrips = new ArrayList<Calendar>();
+	private ArrayList<Calendar> getDatesWithNoTrips(){
+		ArrayList<Calendar> datesWithNoTrips = new ArrayList<>();
 		TreeMap<Calendar, Integer> tc = getTripCountForDates();
 		for(Map.Entry<Calendar, Integer> d: tc.entrySet()){
 			if (d.getValue()==0){
@@ -195,21 +197,23 @@ public class CalendarDateVerificationService {
 		SimpleDateFormat df = new SimpleDateFormat("E, yyyy-MM-dd");
 		Calendar yesterday = Calendar.getInstance();
 		yesterday.add(Calendar.DAY_OF_MONTH, -1);
+
+		int dayCount =0;
 				
 		TreeMap<Calendar, Integer> tc = getTripCountForDates();
 		for(Calendar d: tc.keySet()){
-			if (d.before(yesterday)){
+			if (d.before(yesterday) || dayCount > MAX_CALENDAR_PRINT){
 				continue;
 			}
-			s.append("\n#### " + df.format(d.getTime()));
-			s.append("\n number of trips on this day: " + tc.get(d));
+			s.append("\n#### ").append(df.format(d.getTime()));
+			s.append("\n number of trips on this day: ").append(tc.get(d));
 
 			TreeSet<AgencyAndId> aid = getServiceIdsForDates().get(d);
 
 			for (AgencyAndId sid : aid){
-				s.append("\n" + helper.getHumanReadableCalendarFromServiceId(sid.toString()));
+				s.append("\n").append(helper.getHumanReadableCalendarFromServiceId(sid.toString()));
 			}
-			
+			dayCount++;
 		}
 		return s.toString();
 	}
@@ -224,8 +228,8 @@ public class CalendarDateVerificationService {
 		ConcurrentHashMap<ServiceDate, ArrayList<AgencyAndId>> calDateMap = new ConcurrentHashMap<>();
 		allCalendarDates.stream().filter(d -> d.getExceptionType() ==1)
 				.forEach(d -> {
-					calDateMap.computeIfAbsent(d.getDate(), k-> new ArrayList<AgencyAndId>()).add(d.getServiceId());
-				});;	
+					calDateMap.computeIfAbsent(d.getDate(), k-> new ArrayList<>()).add(d.getServiceId());
+				});
 		
 		return calDateMap;
 	}
@@ -234,8 +238,8 @@ public class CalendarDateVerificationService {
 		ConcurrentHashMap<ServiceDate, ArrayList<AgencyAndId>> calDateMap = new ConcurrentHashMap<>();
 		allCalendarDates.stream().filter(d -> d.getExceptionType() ==2)
 				.forEach(d -> {
-					calDateMap.computeIfAbsent(d.getDate(), k-> new ArrayList<AgencyAndId>()).add(d.getServiceId());
-				});;	
+					calDateMap.computeIfAbsent(d.getDate(), k-> new ArrayList<>()).add(d.getServiceId());
+				});
 		
 		return calDateMap;
 	}

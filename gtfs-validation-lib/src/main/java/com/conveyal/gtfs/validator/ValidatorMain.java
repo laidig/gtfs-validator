@@ -91,7 +91,7 @@ public class ValidatorMain {
 		StringBuilder sb = new StringBuilder(256);
 		sb.append("# Validation report for ");
 
-		List<Agency> agencies = new ArrayList<Agency>(dao.getAllAgencies());
+		List<Agency> agencies = new ArrayList<>(dao.getAllAgencies());
 		int size = agencies.size();
 		
 		for (int i = 0; i < size; i++) {
@@ -157,7 +157,7 @@ public class ValidatorMain {
 		System.out.println("\n### Dates");
 		System.out.println(getValidationReport(dates));
 		
-		System.out.println("\n### Active Calendars");
+		System.out.println("\n### Active Calendars for the next 30 days");
 		System.out.println(calendarDateVerService.getTripDataForEveryDay());
 	}
 	
