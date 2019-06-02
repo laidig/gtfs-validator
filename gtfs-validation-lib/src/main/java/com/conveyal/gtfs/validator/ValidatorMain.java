@@ -159,14 +159,10 @@ public class ValidatorMain {
 		
 		log("\n### Dates");
 		log(getValidationReport(dates));
-		
-<<<<<<< HEAD
+
 		System.out.println("\n### Active Calendars for the next 30 days");
 		System.out.println(calendarDateVerService.getTripDataForEveryDay());
-=======
-		log("\n### Active Calendars");
-		log(calendarDateVerService.getTripDataForEveryDay());
->>>>>>> 2daa0f42c56b6df849954c0ac6c5ec0a80e4df82
+
 	}
 	
 	/**
