@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.conveyal</groupId>
     <artifactId>gtfs-validator</artifactId>
-    <version>0.1.7-SNAPSHOT</version>
+    <version>0.1.8-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <repositories>
@@ -44,6 +44,7 @@
         <connection>scm:git:git@github.com:conveyal/gtfs-validator.git</connection>
         <developerConnection>scm:git:git@github.com:conveyal/gtfs-validator.git</developerConnection>
         <url>scm:git:git@github.com:conveyal/gtfs-validator</url>
+    <tag>gtfs-validator-0.1.8-SNAPSHOT</tag>
   </scm>
 
   <issueManagement>
@@ -53,12 +54,12 @@
 
   <distributionManagement>
     <repository>
-      <id>releases-mvn-repo</id>
-      <url>http://build.staging.obanyc.com/archiva/repository/releases/</url>
+      <id>nexus.onebusaway.org-releases</id>
+      <url>http://nexus.onebusaway.org/content/repositories/releases/</url>
     </repository>
     <snapshotRepository>
-      <id>snapshots-mvn-repo</id>
-      <url>http://build.staging.obanyc.com/archiva/repository/snapshots/</url>
+      <id>nexus.onebusaway.org-snapshots</id>
+      <url>http://nexus.onebusaway.org/content/repositories/snapshots/</url>
     </snapshotRepository>
   </distributionManagement>
 

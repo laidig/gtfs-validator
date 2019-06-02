@@ -3,11 +3,11 @@
   <parent>
           <artifactId>gtfs-validator</artifactId>
           <groupId>com.conveyal</groupId>
-          <version>0.1.7-SNAPSHOT</version>
+          <version>0.1.8-SNAPSHOT</version>
   </parent>
   <groupId>com.conveyal</groupId>
   <artifactId>gtfs-validator-json</artifactId>
-  <version>0.1.7-SNAPSHOT</version>
+  <version>0.1.8-SNAPSHOT</version>
   <name>gtfs-validator-json</name>
   <url>http://conveyal.com</url>
 
@@ -25,7 +25,7 @@
     <dependency>
       <groupId>com.conveyal</groupId>
       <artifactId>gtfs-validation-lib</artifactId>
-      <version>0.1.7-SNAPSHOT</version>
+      <version>0.1.8-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>org.onebusaway</groupId>
@@ -42,6 +42,11 @@
       <artifactId>jackson-databind</artifactId>
       <version>2.3.3</version>
     </dependency>
+      <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>4.12</version>
+      </dependency>
   </dependencies>
   
   <build>
